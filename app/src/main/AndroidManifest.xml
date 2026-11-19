@@ -107,7 +107,6 @@
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
             android:stateNotNeeded="true"
-            android:resumeWhilePaused="true"
             android:enableOnBackInvokedCallback="false"
             android:windowSoftInputMode="stateAlwaysHidden|adjustPan"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|locale|layoutDirection|fontScale">
