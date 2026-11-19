@@ -1,0 +1,97 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      geckoview_version:
+        description: "GeckoView version: empty = Firefox 139 (May 2025), 'latest', a major like 138, or a full version"
+        required: false
+        default: ""
+      geckoview_artifact:
+        description: "GeckoView artifact (leave empty = auto)"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Find GeckoView on Mozilla's Maven
+        env:
+          IN_VERSION: ${{ github.event.inputs.geckoview_version }}
+          IN_ARTIFACT: ${{ github.event.inputs.geckoview_artifact }}
+        run: |
+          set -u
+          BASE=https://maven.mozilla.org/maven2/org/mozilla/geckoview
+
+          # 1) which artifact exists (arm64-only is the smallest)
+          ARTIFACT="$IN_ARTIFACT"
+          if [ -z "$ARTIFACT" ]; then
+            for A in geckoview-arm64-v8a geckoview-omni geckoview; do
+              if curl -fsSL "$BASE/$A/maven-metadata.xml" -o "meta.xml"; then ARTIFACT="$A"; break; fi
+              echo "Not found on Mozilla Maven: $A"
+            done
+          else
+            curl -fsSL "$BASE/$ARTIFACT/maven-metadata.xml" -o meta.xml || true
+          fi
+          if [ -z "$ARTIFACT" ]; then
+            echo "::error::Could not find a GeckoView artifact on maven.mozilla.org. Re-run the workflow and fill in the 'geckoview_artifact' and 'geckoview_version' boxes."
+            exit 1
+          fi
+
+          # 2) which version.
+          #    - empty (or a push)  -> newest 139.x (Firefox 139, released late May 2025)
+          #    - "latest"           -> newest available
+          #    - "138" / "140" ...  -> newest build of that major version
+          #    - "139.0.20250522..."-> exactly that version
+          WANT="${IN_VERSION:-139}"
+          VERSION=""
+          if [[ "$WANT" =~ ^[0-9]+(\.[0-9]+)+$ ]] && [[ "$WANT" == *.*.* ]]; then
+            VERSION="$WANT"   # full version typed: use as-is
+          else
+            if [ "$WANT" = "latest" ]; then PREFIX=""; else PREFIX="${WANT%%.*}."; fi
+            for V in $(grep -oP '(?<=<version>)[^<]+' meta.xml | grep -E '^[0-9]+(\.[0-9]+)+$' | grep -E "^${PREFIX}" | sort -Vr | head -n 15); do
+              if curl -fsI "$BASE/$ARTIFACT/$V/$ARTIFACT-$V.pom" >/dev/null; then VERSION="$V"; break; fi
+              echo "Skipping $V (no .pom)"
+            done
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not work out a GeckoView version. Re-run and fill in 'geckoview_version'."
+            exit 1
+          fi
+
+          echo "Using $ARTIFACT $VERSION"
+          echo "GECKO_ARTIFACT=$ARTIFACT" >> "$GITHUB_ENV"
+          echo "GECKO_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Make sure Android platform 36 is installed
+        continue-on-error: true
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" || true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Build release APK
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebOSLauncher-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 30

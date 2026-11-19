@@ -1,0 +1,60 @@
+plugins {
+    id 'com.android.application'
+}
+
+// GeckoView (the Firefox engine). The GitHub workflow finds the newest matching
+// version on Mozilla's Maven and passes it in. Locally:
+//   GECKO_ARTIFACT=geckoview-arm64-v8a GECKO_VERSION=139.0.xxxxxxxx gradle :app:assembleRelease
+def geckoArtifact = System.getenv('GECKO_ARTIFACT') ?: 'geckoview-arm64-v8a'
+def geckoVersion  = System.getenv('GECKO_VERSION')  ?: ''
+if (geckoVersion.isEmpty()) {
+    throw new GradleException('GECKO_VERSION is not set. Build through the GitHub workflow, or export GECKO_ARTIFACT and GECKO_VERSION.')
+}
+
+android {
+    namespace 'com.webos.launcher'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.webos.launcher'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+
+    signingConfigs {
+        // Fixed key so every build installs over the last one. Keep the repo private.
+        main {
+            storeFile file('webos.keystore')
+            storePassword 'android'
+            keyAlias 'webos'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.main
+        }
+        debug {
+            signingConfig signingConfigs.main
+        }
+    }
+
+    packaging {
+        jniLibs { useLegacyPackaging = true }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "org.mozilla.geckoview:${geckoArtifact}:${geckoVersion}"
+}
