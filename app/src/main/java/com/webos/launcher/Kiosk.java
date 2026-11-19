@@ -20,7 +20,7 @@ import android.view.WindowInsetsController;
  *  - Always: immersive fullscreen (status + navigation bar hidden).
  *  - Device Owner (set with adb or root): real lock-task kiosk. No status bar, no notification
  *    shade, no home/recents, no power menu, no lock screen, permanent default launcher.
- *  - Not Device Owner: falls back to Android "screen pinning".
+ *  - Not Device Owner: no pinning, just the immersive home launcher.
  */
 final class Kiosk {
     private static final String TAG = "WebOSKiosk";
@@ -81,11 +81,15 @@ final class Kiosk {
 
     static void engage(Activity a) {
         hideSystemUi(a);
+        // Lock task only as Device Owner (silent). Without it Android would show the
+        // "screen pinning" prompt, so we just stay an immersive home launcher instead.
+        if (!isOwner(a)) return;
         applyPolicies(a);
         try { a.startLockTask(); } catch (Throwable t) { Log.w(TAG, "startLockTask " + t); }
     }
 
     static void disengage(Activity a) {
+        if (!isOwner(a)) return;
         try { a.stopLockTask(); } catch (Throwable t) { Log.w(TAG, "stopLockTask " + t); }
     }
 

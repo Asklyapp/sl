@@ -21,8 +21,8 @@ URL box + Go, Reload, **Android settings**, default home app, grant permissions,
 Pressing Home inside Android Settings returns to the launcher and re-locks.
 
 ## Full lock-down (Device Owner)
-Without Device Owner Android only allows "screen pinning" (a one-time prompt, and Android's own exit gesture still exists).
-For the real thing, make the app Device Owner. Needs a phone with **no accounts signed in**:
+Without Device Owner it never pins the screen: it is just an immersive home launcher (bars hide, but an edge swipe can still reveal them briefly).
+For the real lock-down, make the app Device Owner. Needs a phone with **no accounts signed in**:
 
     adb shell dpm set-device-owner com.webos.launcher/.AdminReceiver
 

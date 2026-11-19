@@ -748,7 +748,7 @@ public class MainActivity extends Activity implements AdminPanel.Listener {
     private void togglePanel() { if (panel.isOpen()) closePanel(); else openPanel(); }
 
     private void openPanel() {
-        String s = "Device owner: " + (Kiosk.isOwner(this) ? "yes (full lock-down)" : "no (screen pinning only)")
+        String s = "Device owner: " + (Kiosk.isOwner(this) ? "yes (full lock-down)" : "no (immersive launcher only)")
                 + "\nDefault home app: " + (isDefaultHome() ? "yes" : "no")
                 + "\nLock-down: " + (kioskEnabled ? "on" : "paused");
         geckoView.clearFocus();
